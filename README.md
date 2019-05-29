@@ -1,0 +1,1 @@
+# go-simple-lo - simple logger without any extras  
