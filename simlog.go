@@ -41,3 +41,9 @@ var globalLog = NewLogger()
 func Printf(format string, v ...interface{}) {
 	globalLog.Printf(format, v...)
 }
+
+func SetOptions(opts ...Option) {
+	for _, opt := range opts {
+		opt(globalLog)
+	}
+}
