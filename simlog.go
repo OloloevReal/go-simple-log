@@ -43,7 +43,9 @@ func (l *Logger) Printf(format string, v ...interface{}) {
 	l.logf(log.Printf, format, v...)
 }
 
-func (l *Logger) logf(fn func(format string, v ...interface{}), format string, v ...interface{}) {
+type Func func(format string, v ...interface{})
+
+func (l *Logger) logf(fn Func, format string, v ...interface{}) {
 	lv, msg := l.extractLevel(fmt.Sprintf(format, v...))
 	if lv == "DEBUG" && !l.debug {
 		return
