@@ -2,7 +2,9 @@ package simlog
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path"
 	"runtime"
 	"strings"
@@ -12,11 +14,12 @@ import (
 Just simple logs, not more
 */
 
-var version = "0.0.1"
+var version = "0.0.2"
 
 var levels = []string{"DEBUG", "INFO", "ERROR", "PANIC", "FATAL"}
 
 type Logger struct {
+	out    io.Writer
 	debug  bool
 	caller bool
 }
@@ -32,18 +35,22 @@ func SetCaller(l *Logger) {
 }
 
 func NewLogger(opts ...Option) *Logger {
-	l := &Logger{debug: false, caller: false}
+	l := &Logger{out: os.Stderr, debug: false, caller: false}
 	for _, opt := range opts {
 		opt(l)
 	}
 	return l
 }
 
-func (l *Logger) Printf(format string, v ...interface{}) {
-	l.logf(log.Printf, format, v...)
-}
+// func (l *Logger) Printf(format string, v ...interface{}) {
+// 	l.logf(log.Printf, format, v...)
+// }
 
 type Func func(format string, v ...interface{})
+
+func (l *Logger) SetOutput(w io.Writer) {
+	log.SetOutput(w)
+}
 
 func (l *Logger) logf(fn Func, format string, v ...interface{}) {
 	lv, msg := l.extractLevel(fmt.Sprintf(format, v...))
@@ -61,6 +68,20 @@ func (l *Logger) logf(fn Func, format string, v ...interface{}) {
 
 }
 
+func (l *Logger) logln(fn func(v ...interface{}), v ...interface{}) {
+	lv, msg := l.extractLevel(fmt.Sprint(v...))
+	if lv == "DEBUG" && !l.debug {
+		return
+	}
+
+	if !l.caller {
+		fn(fmt.Sprintf("[%s] %s", lv, msg))
+	} else {
+		ci := l.reportCaller(0)
+		fn(fmt.Sprintf("[%s] {%s} %s", lv, fmt.Sprintf("%s:%d %s", ci.File, ci.Line, ci.FuncName), msg))
+	}
+}
+
 func (l *Logger) extractLevel(line string) (level, msg string) {
 	for _, lv := range levels {
 		if strings.HasPrefix(line, "["+lv+"]") {
@@ -76,18 +97,34 @@ func Printf(format string, v ...interface{}) {
 	globalLog.logf(log.Printf, format, v...)
 }
 
+func Println(v ...interface{}) {
+	globalLog.logln(log.Println, v...)
+}
+
 func Fatalf(format string, v ...interface{}) {
 	globalLog.logf(log.Fatalf, format, v...)
+}
+
+func Fatalln(v ...interface{}) {
+	globalLog.logln(log.Fatalln, v...)
 }
 
 func Panicf(format string, v ...interface{}) {
 	globalLog.logf(log.Panicf, format, v...)
 }
 
+func Panicln(v ...interface{}) {
+	globalLog.logln(log.Panicln, v...)
+}
+
 func SetOptions(opts ...Option) {
 	for _, opt := range opts {
 		opt(globalLog)
 	}
+}
+
+func GetDafault() *Logger {
+	return globalLog
 }
 
 type callerInfo struct {
